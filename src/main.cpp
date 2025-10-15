@@ -1,3 +1,6 @@
+#include "zephyr-common.h"
+#include "zephyr/kernel.h"
+
 #ifndef __cplusplus
 #error "__cplusplus not defined! Build system is compiling as C!"
 #endif
@@ -7,8 +10,10 @@
 
 #include "zephyr-common.h"
 #include "CanInitializer.h"
-// #include "PedalSensors.h"
+#include "heap_init.h"
+#include "diagnostic.h"
 
+// #include "PedalSensors.h"
 
 LOG_MODULE_REGISTER(main);
 
@@ -17,6 +22,7 @@ LOG_MODULE_REGISTER(main);
 
 #define DEBUGGING 0
 
+const struct k_heap* sys_heap;
 // Placeholder values while we do not have real numbers (most likely same as 24
 // // car)
 // const int ocThreshold = 1; // Open Circuit threshold
@@ -46,6 +52,11 @@ LOG_MODULE_REGISTER(main);
 
 int main(void) {
 
+
+
     LOG_INF("ENTERED MAIN"); 
     can_init();
+    sys_heap = heap_init(); 
+    diagnostics_init(); 
+    
 }

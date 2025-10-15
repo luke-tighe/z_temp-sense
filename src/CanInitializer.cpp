@@ -3,13 +3,13 @@
 LOG_MODULE_REGISTER(canInitializer, LOG_LEVEL_INF);
 
 
-
-
 namespace {
     constexpr int CAN1_BAUD = 1000000;         
     constexpr int CAN1_SAMPLE_POINT = 875;       
     constexpr uint16_t CAN1_STATUS_MSG_ID = 0x090; 
 }
+
+
 
 static void can_rx_callback(const struct device *dev, struct can_frame *frame, void *user_data) {
     LOG_INF("Received CAN frame ID=0x%x DLC=%d", frame->id, frame->dlc);

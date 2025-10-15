@@ -3,4 +3,4 @@
 
 /* can_init ENCAPSULATES ALL CAN INITIALIZATION AND STARTUP CONFIGURATION
  * BEHAVIOR */
-uint8_t can_init();
+uint8_t diagnostics_init();

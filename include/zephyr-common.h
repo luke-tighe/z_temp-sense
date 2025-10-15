@@ -8,3 +8,12 @@
 #include <stdio.h>
 #include <sys/_intsup.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/sys_heap.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <zephyr/sys/mem_stats.h>
+#include <zephyr/toolchain.h>
+#include <zephyr/debug/cpu_load.h>
+#include <zephyr/sys/printk.h>
+
+#include "globals.h"
