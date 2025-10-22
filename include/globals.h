@@ -2,4 +2,4 @@
 #include "zephyr-common.h"
 
 extern const struct k_heap *sys_heap;
-
+extern const struct device *can1; 

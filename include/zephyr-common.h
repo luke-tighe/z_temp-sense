@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <zephyr/sys/mem_stats.h>
 #include <zephyr/toolchain.h>
+#include "syscalls/can.h"
 #include <zephyr/debug/cpu_load.h>
 #include <zephyr/sys/printk.h>
 

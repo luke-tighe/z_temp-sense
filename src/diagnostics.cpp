@@ -1,11 +1,12 @@
+#include "globals.h"
 #include "zephyr-common.h"
 
 
 
 LOG_MODULE_REGISTER(soc_health, LOG_LEVEL_INF); 
 
-#define DIAG_THREAD_STACK_SIZE 1024
-#define DIAG_THREAD_PRIORITY   5
+ constexpr int DIAG_THREAD_STACK_SIZE = 1024;
+ constexpr int DIAG_THREAD_PRIORITY  = 5;
 
 
 constexpr int health_task_period = 100; //in ms 
@@ -14,7 +15,8 @@ constexpr int health_task_period = 100; //in ms
 void diagnostics_thread(void*,void*,void*){
         while(1){
             uint64_t uptime_ms = k_uptime_get(); 
-
+            enum can_state state ; 
+            can_get_state(can1, &state,NULL);
                 struct sys_memory_stats memstats = {0,0,0}; 
                 if(sys_heap == NULL){
                     return; 
@@ -22,11 +24,32 @@ void diagnostics_thread(void*,void*,void*){
                 sys_heap_runtime_stats_get((struct sys_heap*)&sys_heap->heap, &memstats);
                 uint8_t load = cpu_load_get(1); 
 
-                LOG_INF("Uptime: %llu ms | Heap: %zu/%zu bytes | CPU Load: %d",
+                LOG_INF("Uptime: %llu ms | Heap: %zu/%zu bytes | CPU Load: %d, ",
                 uptime_ms,
                 memstats.allocated_bytes,
                 memstats.allocated_bytes + memstats.free_bytes,
                 load);
+
+                switch (state)
+                {
+                    case CAN_STATE_ERROR_ACTIVE:
+                        LOG_INF("CANBUS is In running condition"); 
+                        break;
+                    case CAN_STATE_ERROR_WARNING: 
+                        LOG_INF("CANBUS is In running (warning) condition"); 
+                        break; 
+                    case CAN_STATE_ERROR_PASSIVE: 
+                        LOG_INF("CANBUS is In Error (passive) condition"); 
+                        break; 
+                    case CAN_STATE_BUS_OFF:
+                        LOG_INF("CANBUS is in OFF condition"); 
+                    case CAN_STATE_STOPPED: 
+                        LOG_INF("CANBUS is OFF ( CONTROLLER STOPPED)"); 
+                        break; 
+                    default:
+                        LOG_INF("Failed to get CANBUS condition");
+                        break;
+                }
 
 
                 k_msleep(health_task_period);

@@ -1,5 +1,5 @@
+#include "globals.h"
 #include "zephyr-common.h"
-#include "zephyr/kernel.h"
 
 #ifndef __cplusplus
 #error "__cplusplus not defined! Build system is compiling as C!"
@@ -7,8 +7,6 @@
 
 
 
-
-#include "zephyr-common.h"
 #include "CanInitializer.h"
 #include "heap_init.h"
 #include "diagnostic.h"
@@ -52,11 +50,14 @@ const struct k_heap* sys_heap;
 
 int main(void) {
 
-
-
     LOG_INF("ENTERED MAIN"); 
     can_init();
     sys_heap = heap_init(); 
     diagnostics_init(); 
+
+    while(1){
+        LOG_INF("in main still"); 
+        k_msleep(10000); 
+    }
     
 }

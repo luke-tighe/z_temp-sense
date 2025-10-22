@@ -1,4 +1,5 @@
 #include "zephyr-common.h"
+#include "globals.h"
 
 LOG_MODULE_REGISTER(canInitializer, LOG_LEVEL_INF);
 
@@ -9,7 +10,7 @@ namespace {
     constexpr uint16_t CAN1_STATUS_MSG_ID = 0x090; 
 }
 
-
+const struct device *can1; 
 
 static void can_rx_callback(const struct device *dev, struct can_frame *frame, void *user_data) {
     LOG_INF("Received CAN frame ID=0x%x DLC=%d", frame->id, frame->dlc);
@@ -23,7 +24,9 @@ static void can_status_callback(const struct device *dev, int error, void *user_
     }
 }
 uint8_t can_init() {
-    const struct device *can1 = DEVICE_DT_GET(DT_NODELABEL(fdcan1));
+
+    can1 = DEVICE_DT_GET(DT_NODELABEL(fdcan1));
+
 
     if (!device_is_ready(can1)) {
         LOG_ERR("CAN1 controller not ready");
@@ -55,6 +58,15 @@ uint8_t can_init() {
     if (ret != 0) {
         LOG_ERR("can_set_timing() failed with code %d", ret);
         return static_cast<uint8_t>(ret);
+    }
+
+    LOG_INF("Setting LOOPBACK MODE"); 
+    ret = can_set_mode(can1, CAN_MODE_LOOPBACK);
+    if (ret) {
+        LOG_ERR("Failed to set CAN loopback mode: %d", ret);
+    }
+    else{
+        LOG_INF("Loopback Set"); 
     }
 
     LOG_INF("Starting CAN1...");
@@ -89,6 +101,4 @@ uint8_t can_init() {
 
     LOG_INF("CAN1 initialization complete.");
     return 0;
-
-
 }
