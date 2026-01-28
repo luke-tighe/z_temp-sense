@@ -1,4 +1,0 @@
-    user_button: user_button {
-        gpios = <&gpioc 13 GPIO_ACTIVE_LOW>;
-        label = "USER_BUTTON";
-    };

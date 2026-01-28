@@ -1,10 +1,31 @@
+// zephyr_adc.h
 #pragma once
-#include "zephyr-common.h"
-#include "zephyr/kernel.h"
+#include <zephyr/drivers/adc.h>
+#include <cstdint>
 
+class ZephyrAdcChannel {
+private:
+    const struct device* adc_dev_;
+    struct adc_channel_cfg channel_cfg_;
+    struct adc_sequence sequence_;
+    int16_t buffer_[1];
+    uint8_t channel_id_;
+    int resolution_;
+    float vref_;
+    
+    // Voltage divider: 3.3k top, 6.8k bottom
+    static constexpr float DIVIDER_RATIO = (3.3f + 6.8f) / 6.8f;  // 1.485
+    static constexpr size_t BUFFER_SIZE = sizeof(buffer_);
 
-int init_adc(void);
-float get_voltage(void);          // Simple - does ADC read & conversion internally
-int16_t get_adc_raw_value(void);  // Get raw value from last read
-
-int16_t get_pedal_current(void); 
+public:
+    ZephyrAdcChannel();
+    
+    int init(const struct device* adc_dev, uint8_t channel_id, 
+             int resolution = 12, float vref = 3.3f);
+    
+    float read_voltage();
+    int16_t read_raw();
+    
+    // For testing
+    void set_test_voltage(float voltage);
+};

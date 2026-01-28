@@ -24,11 +24,12 @@ void diagnostics_thread(void*,void*,void*){
                 sys_heap_runtime_stats_get((struct sys_heap*)&sys_heap->heap, &memstats);
                 uint8_t load = cpu_load_get(1); 
 
-                LOG_INF("Uptime: %llu ms | Heap: %zu/%zu bytes | CPU Load: %d, ",
+                LOG_INF("Uptime: %llu ms | Heap: %zu/%zu bytes | CPU Load: %d.%d%% ",
                 uptime_ms,
                 memstats.allocated_bytes,
                 memstats.allocated_bytes + memstats.free_bytes,
-                load);
+                static_cast<int>(load/10),
+                load%10);
 
                 switch (state)
                 {

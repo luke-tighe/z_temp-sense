@@ -1,112 +1,86 @@
-#include <zephyr-common.h>
+// zephyr_adc.cpp
+#include "adc.h"
+#include <zephyr/logging/log.h>
 
+LOG_MODULE_REGISTER(zephyr_adc);
 
-// ADC configuration for A0 pin (PA3 - ADC12_INP15)
-#define ADC_RESOLUTION 12
-#define ADC_GAIN ADC_GAIN_1
-#define ADC_REFERENCE ADC_REF_INTERNAL
-#define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
-#define ADC_CHANNEL 15  // INP15
+ZephyrAdcChannel::ZephyrAdcChannel() 
+    : adc_dev_(nullptr), channel_id_(0), resolution_(12), vref_(3.3f) {
+    buffer_[0] = 0;
+}
 
-LOG_MODULE_REGISTER(ADC);
-
-
-
-static const struct device *adc_dev;
-static struct adc_channel_cfg channel_cfg = {
-    .gain = ADC_GAIN,
-    .reference = ADC_REFERENCE,
-    .acquisition_time = ADC_ACQUISITION_TIME,
-    .channel_id = ADC_CHANNEL,
-    .differential = 0
-};
-
-static int16_t sample_buffer[1];
-static struct adc_sequence sequence = {
-    .channels = BIT(ADC_CHANNEL),
-    .buffer = sample_buffer,
-    .buffer_size = sizeof(sample_buffer),
-    .resolution = ADC_RESOLUTION,
-};
-
-int init_adc(void) {
-    int ret;
+int ZephyrAdcChannel::init(const struct device* adc_dev, uint8_t channel_id,
+                           int resolution, float vref) {
+    adc_dev_ = adc_dev;
+    channel_id_ = channel_id;
+    resolution_ = resolution;
+    vref_ = vref;
     
-    adc_dev = DEVICE_DT_GET(DT_NODELABEL(adc1));
-    if (!device_is_ready(adc_dev)) {
+    if (!device_is_ready(adc_dev_)) {
         LOG_ERR("ADC device not ready");
         return -1;
     }
     
-    ret = adc_channel_setup(adc_dev, &channel_cfg);
+    channel_cfg_.gain = ADC_GAIN_1;
+    channel_cfg_.reference = ADC_REF_INTERNAL;
+    channel_cfg_.acquisition_time = ADC_ACQ_TIME_DEFAULT;
+    channel_cfg_.channel_id = channel_id_;
+    channel_cfg_.differential = 0;
+    
+    sequence_.channels = BIT(channel_id_);
+    sequence_.buffer = buffer_;
+    sequence_.buffer_size = sizeof(buffer_);
+    sequence_.resolution = resolution_;
+    sequence_.options = NULL;
+    sequence_.oversampling = 0;  // Add this - disable oversampling
+    sequence_.calibrate = false;
+    
+    int ret = adc_channel_setup(adc_dev_, &channel_cfg_);
     if (ret != 0) {
-        LOG_ERR("Failed to setup ADC channel: %d", ret);
+        LOG_ERR("Failed to setup ADC channel %d: %d", channel_id_, ret);
         return ret;
     }
     
-    LOG_INF("ADC initialized successfully on channel %d", ADC_CHANNEL);
+    LOG_INF("ADC channel %d initialized", channel_id_);
     return 0;
 }
 
-float read_adc_voltage(void) {
-    int ret;
+float ZephyrAdcChannel::read_voltage() {
+    int16_t raw = read_raw(); 
     
-    ret = adc_read(adc_dev, &sequence);
+    // Convert to voltage at ADC pin: raw_value * vref / (2^resolution)
+    float adc_voltage = (raw * vref_) / (1 << resolution_);
+    
+    // Scale by voltage divider to get actual input voltage
+    float actual_voltage = adc_voltage * DIVIDER_RATIO;
+    
+    return actual_voltage;
+}
+
+inline int16_t ZephyrAdcChannel::read_raw() {
+    if (!adc_dev_) {
+        LOG_ERR("ADC channel %d not initialized", channel_id_);
+        return -1;
+    }
+    
+    int ret = adc_read(adc_dev_, &sequence_);
     if (ret != 0) {
-        LOG_ERR("ADC read failed: %d", ret);
-        return -1.0f;
+        LOG_ERR("ADC read failed on channel %d: %d", channel_id_, ret);
+        return -1;
     }
     
-    // Convert ADC value to voltage
-    // STM32H7 ADC reference is typically 3.3V
-    // 12-bit resolution = 4096 levels
-    float voltage = (sample_buffer[0] * 3.3f) / 4096.0f;
+    // Check for invalid reading
+    if (buffer_[0] < 0) {
+        LOG_ERR("Invalid ADC reading on channel %d: %d", channel_id_, buffer_[0]);
+        return -1;
+    }
     
-    return voltage;
+    return buffer_[0];
 }
 
-// Get voltage - simple interface that does everything internally
-float get_voltage(void) {
-    return read_adc_voltage();
-}
-
-// Get raw ADC value from last read
-int16_t get_adc_raw_value(void) {
-    return sample_buffer[0];
-}
-
-
-// Map voltage to current command (0-14 range)
-// 0% pedal = 2.114V -> 0 amps
-// 100% pedal = 1.588V -> 14 amps
-int16_t get_pedal_current(void) {
-    float voltage = get_voltage();
-    
-    if (voltage < 0) {
-        return 0;  // Error reading ADC
-    }
-    
-    const float voltage_0_percent = 2.114f;
-    const float voltage_100_percent = 1.588f;
-
-    static constexpr int max_current = 20; 
-    static constexpr int min_current =  0; 
-    
-    // Clamp voltage to valid range
-    if (voltage >= voltage_0_percent) {
-        return min_current;  // Below 0% threshold
-    }
-    if (voltage <= voltage_100_percent) {
-        return max_current;  // Above 100% threshold
-    }
-    
-    // Linear mapping: as voltage decreases from 2.114 to 1.588, current increases from 0 to 14
-    float pedal_percent = (voltage_0_percent - voltage) / (voltage_0_percent - voltage_100_percent);
-    int16_t current = (int16_t)(pedal_percent * max_current);
-    
-    // Clamp to 0-14 range (safety)
-    if (current < min_current) current = min_current;
-    if (current > max_current) current = max_current;
-    
-    return current;
+void ZephyrAdcChannel::set_test_voltage(float voltage) {
+    // For unit testing - set buffer to simulate actual input voltage
+    // Reverse the divider calculation: ADC sees voltage / DIVIDER_RATIO
+    float adc_voltage = voltage / DIVIDER_RATIO;
+    buffer_[0] = (int16_t)((adc_voltage / vref_) * (1 << resolution_));
 }

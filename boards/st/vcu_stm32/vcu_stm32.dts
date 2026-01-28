@@ -163,74 +163,109 @@
 	pinctrl-names = "default";
 	st,adc-clock-source = "SYNC";
 	st,adc-prescaler = <4>;
+	vref-mv = <3300>;
 	status = "okay";
 
 	#address-cells = <1>;
 	#size-cells = <0>;
 
 	channel@0 {
-		reg = <16>;  /* PA0 - INP16 */
+		reg = <0>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <16>;  /* PA0 - INP16 */
 	};
 
 	channel@1 {
-		reg = <17>;  /* PA1 - INP17 */
+		reg = <1>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <17>;  /* PA1 - INP17 */
 	};
 
 	channel@2 {
-		reg = <14>;  /* PA2 - INP14 */
+		reg = <2>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <14>;  /* PA2 - INP14 */
 	};
 
 	channel@3 {
-		reg = <15>;  /* PA3 - INP15 */
+		reg = <3>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <15>;  /* PA3 - INP15 */
 	};
 
 	channel@4 {
-		reg = <18>;  /* PA4 - INP18 */
+		reg = <4>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <18>;  /* PA4 - INP18 */
 	};
 
 	channel@5 {
-		reg = <19>;  /* PA5 - INP19 */
+		reg = <5>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <19>;  /* PA5 - INP19 */
 	};
 
 	channel@6 {
-		reg = <3>;  /* PA6 - INP3 */
+		reg = <6>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <3>;   /* PA6 - INP3 */
 	};
 
 	channel@7 {
-		reg = <7>;  /* PA7 - INP7 */
+		reg = <7>;
 		zephyr,gain = "ADC_GAIN_1";
-		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,reference = "ADC_REF_VDD_1";
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
 		zephyr,resolution = <12>;
+		zephyr,input-positive = <7>;   /* PA7 - INP7 */
 	};
+};
+&pinctrl {
+    adc1_inp16_pa0: adc1_inp16_pa0 {
+        pinmux = <STM32_PINMUX('A', 0, ANALOG)>;
+    };
+    adc1_inp17_pa1: adc1_inp17_pa1 {
+        pinmux = <STM32_PINMUX('A', 1, ANALOG)>;
+    };
+    adc1_inp14_pa2: adc1_inp14_pa2 {
+        pinmux = <STM32_PINMUX('A', 2, ANALOG)>;
+    };
+    adc1_inp15_pa3: adc1_inp15_pa3 {
+        pinmux = <STM32_PINMUX('A', 3, ANALOG)>;
+    };
+    adc1_inp18_pa4: adc1_inp18_pa4 {
+        pinmux = <STM32_PINMUX('A', 4, ANALOG)>;
+    };
+    adc1_inp19_pa5: adc1_inp19_pa5 {
+        pinmux = <STM32_PINMUX('A', 5, ANALOG)>;
+    };
+    adc1_inp3_pa6: adc1_inp3_pa6 {
+        pinmux = <STM32_PINMUX('A', 6, ANALOG)>;
+    };
+    adc1_inp7_pa7: adc1_inp7_pa7 {
+        pinmux = <STM32_PINMUX('A', 7, ANALOG)>;
+    };
 };
 
 &flash0 {
@@ -257,3 +292,5 @@
 		};
 	};
 };
+
+
