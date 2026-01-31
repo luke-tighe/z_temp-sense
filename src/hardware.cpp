@@ -7,13 +7,25 @@
 LOG_MODULE_REGISTER(hardware);
 
     int Hardware::init() {
-        initializeADCs(); 
-        return 0; 
-    }
+        LOG_INF("Initializing hardware...");
+    
+         if (initializeADCs() != 0) {
+            LOG_ERR("Failed to initialize ADCs");
+            return -1;
+        }
+    
+         if (initializeGPIOs() != 0) {
+            LOG_ERR("Failed to initialize GPIOs");
+            return -2;
+        }
+    
+    LOG_INF("Hardware initialized successfully");
+    return 0;
+}
 
-    Hardware::Hardware(VehicleState& state){
+Hardware::Hardware(VehicleState& state){
         this->vehicle = state;
-    }
+}
 
 int Hardware::initializeADCs(){
     LOG_INF("Initializing hardware...");
@@ -70,3 +82,54 @@ int Hardware::initializeADCs(){
         destination = chan.read_voltage(); 
         return 0; 
     }
+
+    int Hardware::initializeGPIOs() {
+    // Get GPIO ports
+    gpioe_ = DEVICE_DT_GET(DT_NODELABEL(gpioe));
+    gpioc_ = DEVICE_DT_GET(DT_NODELABEL(gpioc));
+    gpioa_ = DEVICE_DT_GET(DT_NODELABEL(gpioa));
+    
+    if (!gpioe_ || !gpioc_ || !gpioa_) {
+        LOG_ERR("Failed to get GPIO ports");
+        return -1;
+    }
+    
+    // Initialize LEDs (PE2-PE6)
+    if (led_yellow.init(gpioe_, 2, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init led_yellow");
+        return -10;
+    }
+    if (led_orange.init(gpioe_, 3, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init led_orange");
+        return -11;
+    }
+    if (led_red.init(gpioe_, 4, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init led_red");
+        return -12;
+    }
+    if (led_blue.init(gpioe_, 5, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init led_blue");
+        return -13;
+    }
+    if (led_green.init(gpioe_, 6, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init led_green");
+        return -14;
+    }
+    
+    // Initialize control signals
+    if (horn_signal.init(gpioc_, 8, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init horn_signal");
+        return -20;
+    }
+    if (drive_enable.init(gpioc_, 9, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init drive_enable");
+        return -21;
+    }
+    if (air_ctrl.init(gpioa_, 8, GPIO_OUTPUT_INACTIVE) != 0) {
+        LOG_ERR("Failed to init air_ctrl");
+        return -22;
+    }
+    
+    LOG_INF("GPIOs initialized");
+    return 0;
+}

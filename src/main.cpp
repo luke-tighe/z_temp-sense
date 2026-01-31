@@ -208,4 +208,23 @@ int main(void) {
     Hardware hardware(vehicle); 
     hardware.init(); 
 
+    while(1){
+    // Pattern 1: Yellow, Red, Green ON | Orange, Blue OFF
+    hardware.led_yellow.set(true);
+    hardware.led_orange.set(false);
+    hardware.led_red.set(true);
+    hardware.led_blue.set(false);
+    hardware.led_green.set(true);
+    k_msleep(500);
+    
+    // Pattern 2: Orange, Blue ON | Yellow, Red, Green OFF
+    hardware.led_yellow.set(false);
+    hardware.led_orange.set(true);
+    hardware.led_red.set(false);
+    hardware.led_blue.set(true);
+    hardware.led_green.set(false);
+    k_msleep(500);
+        
+    }
+
 }   
