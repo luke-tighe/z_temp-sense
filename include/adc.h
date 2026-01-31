@@ -1,9 +1,8 @@
 // zephyr_adc.h
 #pragma once
 #include <zephyr/drivers/adc.h>
-#include <cstdint>
 
-class ZephyrAdcChannel {
+class AdcChannel {
 private:
     const struct device* adc_dev_;
     struct adc_channel_cfg channel_cfg_;
@@ -18,7 +17,7 @@ private:
     static constexpr size_t BUFFER_SIZE = sizeof(buffer_);
 
 public:
-    ZephyrAdcChannel();
+    AdcChannel();
     
     int init(const struct device* adc_dev, uint8_t channel_id, 
              int resolution = 12, float vref = 3.3f);

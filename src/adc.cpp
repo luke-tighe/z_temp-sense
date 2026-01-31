@@ -4,12 +4,12 @@
 
 LOG_MODULE_REGISTER(zephyr_adc);
 
-ZephyrAdcChannel::ZephyrAdcChannel() 
+AdcChannel::AdcChannel() 
     : adc_dev_(nullptr), channel_id_(0), resolution_(12), vref_(3.3f) {
     buffer_[0] = 0;
 }
 
-int ZephyrAdcChannel::init(const struct device* adc_dev, uint8_t channel_id,
+int AdcChannel::init(const struct device* adc_dev, uint8_t channel_id,
                            int resolution, float vref) {
     adc_dev_ = adc_dev;
     channel_id_ = channel_id;
@@ -45,7 +45,7 @@ int ZephyrAdcChannel::init(const struct device* adc_dev, uint8_t channel_id,
     return 0;
 }
 
-float ZephyrAdcChannel::read_voltage() {
+float AdcChannel::read_voltage() {
     int16_t raw = read_raw(); 
     
     // Convert to voltage at ADC pin: raw_value * vref / (2^resolution)
@@ -57,7 +57,7 @@ float ZephyrAdcChannel::read_voltage() {
     return actual_voltage;
 }
 
-inline int16_t ZephyrAdcChannel::read_raw() {
+inline int16_t AdcChannel::read_raw() {
     if (!adc_dev_) {
         LOG_ERR("ADC channel %d not initialized", channel_id_);
         return -1;
@@ -78,7 +78,7 @@ inline int16_t ZephyrAdcChannel::read_raw() {
     return buffer_[0];
 }
 
-void ZephyrAdcChannel::set_test_voltage(float voltage) {
+void AdcChannel::set_test_voltage(float voltage) {
     // For unit testing - set buffer to simulate actual input voltage
     // Reverse the divider calculation: ADC sees voltage / DIVIDER_RATIO
     float adc_voltage = voltage / DIVIDER_RATIO;

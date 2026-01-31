@@ -12,7 +12,6 @@
 #include <stdbool.h>
 #include <zephyr/sys/mem_stats.h>
 #include <zephyr/toolchain.h>
-#include "hardware.h"
 #include "syscalls/can.h"
 #include <zephyr/debug/cpu_load.h>
 #include <zephyr/sys/printk.h>
@@ -20,7 +19,6 @@
 
 
 #include "globals.h"
-#include "CanInitializer.h"
 #include "heap_init.h"
 #include "diagnostic.h"
 #include "adc.h"
@@ -199,6 +197,37 @@ CAN_MSGQ_DEFINE(main_can_rx_msgq, 1000);
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
+void send_heartbeat(Hardware& hw) {
+    static uint32_t heartbeat_counter = 0;
+    
+    struct can_frame heartbeat_frame = {
+        .id = 0x100,  // Heartbeat message ID
+        .dlc = 8,
+        .flags = 0,
+        .data = {
+            (uint8_t)(heartbeat_counter >> 24),
+            (uint8_t)(heartbeat_counter >> 16),
+            (uint8_t)(heartbeat_counter >> 8),
+            (uint8_t)(heartbeat_counter),
+            0xEF,
+            0xFF,
+            0xFF,
+            0xFF
+        }
+    };
+    
+    int ret = hw.can1.send(&heartbeat_frame, K_NO_WAIT);
+    if (ret == 0) {
+        LOG_INF("Heartbeat sent: %d", heartbeat_counter);
+    } else {
+        LOG_ERR("Heartbeat send failed: %d", ret);
+    }
+    
+    heartbeat_counter++;
+}
+
+
+
 int main(void) {
     LOG_INF("*** VCU BOOT TEST ***\n");
     
@@ -207,6 +236,7 @@ int main(void) {
     VehicleState vehicle; 
     Hardware hardware(vehicle); 
     hardware.init(); 
+    diagnostics_init(); 
 
     while(1){
     // Pattern 1: Yellow, Red, Green ON | Orange, Blue OFF
@@ -215,6 +245,7 @@ int main(void) {
     hardware.led_red.set(true);
     hardware.led_blue.set(false);
     hardware.led_green.set(true);
+    send_heartbeat(hardware); 
     k_msleep(500);
     
     // Pattern 2: Orange, Blue ON | Yellow, Red, Green OFF
@@ -223,6 +254,8 @@ int main(void) {
     hardware.led_red.set(false);
     hardware.led_blue.set(true);
     hardware.led_green.set(false);
+        send_heartbeat(hardware); 
+
     k_msleep(500);
         
     }

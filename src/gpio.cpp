@@ -3,10 +3,10 @@
 
 LOG_MODULE_REGISTER(gpio);
 
-ZephyrGpioPin::ZephyrGpioPin() 
+GpioPin::GpioPin() 
     : port_(nullptr), pin_(0), flags_(0), initialized_(false) {}
 
-int ZephyrGpioPin::init(const struct device* port, gpio_pin_t pin, gpio_flags_t flags) {
+int GpioPin::init(const struct device* port, gpio_pin_t pin, gpio_flags_t flags) {
     if (!port) {
         LOG_ERR("GPIO port is NULL");
         return -1;
@@ -32,7 +32,7 @@ int ZephyrGpioPin::init(const struct device* port, gpio_pin_t pin, gpio_flags_t 
     return 0;
 }
 
-int ZephyrGpioPin::init(const struct gpio_dt_spec* spec, gpio_flags_t flags) {
+int GpioPin::init(const struct gpio_dt_spec* spec, gpio_flags_t flags) {
     if (!spec) {
         LOG_ERR("GPIO spec is NULL");
         return -1;
@@ -58,7 +58,7 @@ int ZephyrGpioPin::init(const struct gpio_dt_spec* spec, gpio_flags_t flags) {
     return 0;
 }
 
-int ZephyrGpioPin::set(bool state) {
+int GpioPin::set(bool state) {
     if (!initialized_) {
         return -1;
     }
@@ -66,7 +66,7 @@ int ZephyrGpioPin::set(bool state) {
     return gpio_pin_set(port_, pin_, state ? 1 : 0);
 }
 
-int ZephyrGpioPin::toggle() {
+int GpioPin::toggle() {
     if (!initialized_) {
         return -1;
     }
@@ -74,7 +74,7 @@ int ZephyrGpioPin::toggle() {
     return gpio_pin_toggle(port_, pin_);
 }
 
-int ZephyrGpioPin::get(bool* state) const {
+int GpioPin::get(bool* state) const {
     if (!initialized_ || !state) {
         return -1;
     }

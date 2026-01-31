@@ -1,7 +1,7 @@
 #pragma once
 #include <zephyr/drivers/gpio.h>
 
-class ZephyrGpioPin {
+class GpioPin {
 private:
     const struct device* port_;
     gpio_pin_t pin_;
@@ -9,7 +9,7 @@ private:
     bool initialized_;
 
 public:
-    ZephyrGpioPin();
+    GpioPin();
     
     int init(const struct device* port, gpio_pin_t pin, gpio_flags_t flags);
     int init(const struct gpio_dt_spec* spec, gpio_flags_t flags);

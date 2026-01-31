@@ -1,6 +1,7 @@
 // hardware.cpp
 #include "hardware.h"
 #include "vehicle_state.h"
+#include "zephyr/drivers/can.h"
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 
@@ -17,6 +18,11 @@ LOG_MODULE_REGISTER(hardware);
          if (initializeGPIOs() != 0) {
             LOG_ERR("Failed to initialize GPIOs");
             return -2;
+        }
+
+        if (initializeCANs() != 0){
+            LOG_ERR("Failed to initialize CANs");
+            return -3; 
         }
     
     LOG_INF("Hardware initialized successfully");
@@ -78,7 +84,7 @@ int Hardware::initializeADCs(){
 
         return 0; 
     }
-    int Hardware::updateAnalogChannel(ZephyrAdcChannel& chan,float& destination){
+    int Hardware::updateAnalogChannel(AdcChannel& chan,float& destination){
         destination = chan.read_voltage(); 
         return 0; 
     }
@@ -131,5 +137,43 @@ int Hardware::initializeADCs(){
     }
     
     LOG_INF("GPIOs initialized");
+    return 0;
+}
+
+int Hardware::initializeCANs() {
+    // Get CAN devices
+    can1_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan1));
+    can2_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan2));
+    
+    if (!can1_dev || !can2_dev) {
+        LOG_ERR("Failed to get CAN devices");
+        return -1;
+    }
+    
+    // Initialize CAN1 (1 Mbps)
+    if (can1.init(can1_dev, 1000000, 875) != 0) {
+        LOG_ERR("Failed to init CAN1");
+        return -10;
+    }
+    
+    if (can1.start() != 0) {
+        LOG_ERR("Failed to start CAN1");
+        return -11;
+    }
+    
+    // Initialize CAN2 (1 Mbps)
+    if (can2.init(can2_dev, 1000000, 875) != 0) {
+        LOG_ERR("Failed to init CAN2");
+        return -20;
+    }
+    
+    if (can2.start() != 0) {
+        LOG_ERR("Failed to start CAN2");
+        return -21;
+    }
+    
+    can1.set_mode(CAN_MODE_LOOPBACK);
+
+    LOG_INF("CANs initialized");
     return 0;
 }
