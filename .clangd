@@ -1,5 +1,6 @@
 CompileFlags:
   # Strip GCC‑only or otherwise noisy options that clang can't handle
+  CompilationDatabase: build/
   Remove: [
     -fno-printf-return-value,
     -mfp16-format=ieee,

@@ -1,41 +1,49 @@
 #pragma once
-#include <zephyr/kernel.h>
-#include <zephyr/sys/sys_heap.h>
-#include <zephyr/sys/mem_stats.h>
-#include <zephyr/debug/cpu_load.h>
-#include "hardware.h"
 
-class System {
-private:
-    static constexpr size_t HEAP_SIZE = 2048;
-    static constexpr int DIAG_THREAD_STACK_SIZE = 1024;
-    static constexpr int DIAG_THREAD_PRIORITY = 5;
-    static constexpr int DIAG_PERIOD_MS = 1000;
-    
-    struct k_heap heap_;
-    struct k_thread diag_thread_;
-    k_thread_stack_t* diag_stack_;
-    
-    Hardware* hardware_;
-    bool initialized_;
-    bool diagnostics_running_;
-    
-    static void diagnostics_thread_entry(void* p1, void* p2, void* p3);
-    void diagnostics_loop();
-    
+#include "hardware.h"
+#include "periodic_task.h"
+#include <zephyr/debug/cpu_load.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/mem_stats.h>
+#include <zephyr/sys/sys_heap.h>
+
+// System manages the shared heap and exposes system-level stats.
+// Threading has moved to DiagnosticsTask below.
+class System
+{
 public:
-    System();
-    
     int init();
-    int start_diagnostics(Hardware* hw);
-    void stop_diagnostics();
-    
-    void* heap_alloc(size_t size, k_timeout_t timeout);
-    void heap_free(void* ptr);
-    int get_heap_stats(struct sys_memory_stats* stats);
-    
+
+    void    *heap_alloc(size_t size, k_timeout_t timeout);
+    void     heap_free(void *ptr);
+    int      get_heap_stats(struct sys_memory_stats *stats);
     uint64_t get_uptime_ms() const;
-    uint8_t get_cpu_load() const;
-    
-    bool is_initialized() const { return initialized_; }
+    uint8_t  get_cpu_load() const;
+    bool     is_initialized() const { return initialized_; }
+
+private:
+    struct k_heap heap_;
+    bool          initialized_ = false;
 };
+
+// Periodic diagnostics: logs uptime, heap, CPU load, and CAN bus states.
+class DiagnosticsTask : public PeriodicTask<DiagnosticsTask>
+{
+    friend class PeriodicTask<DiagnosticsTask>;
+
+public:
+    void set_system(System *sys)    { system_   = sys; }
+    void set_hardware(Hardware *hw) { hardware_ = hw;  }
+
+private:
+    System   *system_   = nullptr;
+    Hardware *hardware_ = nullptr;
+
+    void run();
+};
+
+// Start the diagnostics task. Stack and instance are owned inside system.cpp.
+void start_diagnostics_task(System *sys, Hardware *hw, VehicleState *v,
+                             uint32_t period_ms = 1000, int priority = 10);
+
+DiagnosticsTask &get_diagnostics_task();
