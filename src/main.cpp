@@ -3,6 +3,7 @@
 
 #include "threads/APPS.h"
 #include "hardware.h"
+#include "threads/Logger.h"
 #include "threads/system.h"
 #include "vehicle_state.h"
 
@@ -13,8 +14,8 @@ int main(void)
     LOG_INF("***VCU ENTERED MAIN***");
 
     static VehicleState vehicle;
-    static Hardware     hardware(&vehicle);
-    static System       system;
+    static Hardware hardware(&vehicle);
+    static System system;
 
     LOG_INF("=== VCU Starting ===");
 
@@ -35,6 +36,8 @@ int main(void)
 
     // Start the system diagnostics task (1000 ms period, priority 10).
     start_diagnostics_task(&system, &hardware, &vehicle);
+
+    start_logger_task(&system, &hardware, &vehicle);
 
     LOG_INF("=== VCU Ready ===");
 
