@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(west build -b vcu_stm32 -p)"
-    ]
-  }
-}

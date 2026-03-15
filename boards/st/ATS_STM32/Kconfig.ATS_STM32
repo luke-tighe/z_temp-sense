@@ -1,0 +1,7 @@
+# Copyright (c) 2026 VT FSAE
+# SPDX-License-Identifier: Apache-2.0
+
+# modified by Luke Tighe 3-15-2026
+
+config BOARD_ATS_STM32
+	select SOC_STM32H753XX

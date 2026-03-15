@@ -1,0 +1,8 @@
+venv activation:
+source ~/zephyrproject/.venv/bin/activate
+
+venv deactivation:
+deactivate
+
+Build Command:
+west build -b ATS_STM32 z_temp-sense -d build/ats_stm32 -p always

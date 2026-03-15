@@ -1,0 +1,11 @@
+# Copyright (c) 2026 VT FSAE
+# SPDX-License-Identifier: Apache-2.0
+
+# Modified by Luke Tighe 3-15-26
+
+if BOARD_ATS_STM32
+
+config BOARD
+	default "ATS_STM32"
+
+endif # BOARD_ATS_STM32

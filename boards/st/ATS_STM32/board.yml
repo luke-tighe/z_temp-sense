@@ -1,0 +1,8 @@
+# Modified by Luke Tighe 3-15-2026
+
+board:
+  name: ATS_STM32
+  full_name: ATS_STM32H753VIT6
+  vendor: Custom
+  socs:
+    - name: stm32h753xx
