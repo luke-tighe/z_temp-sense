@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Analog Devices AD7708 SPI ADC
+
+compatible: "adi,ad7708"
+
+include: [base.yaml, spi-device.yaml]
+
+properties:
+  drdy-gpios:
+    type: phandle-array
+    required: true
+    description: Data-ready output from the ADC.
+
+  reset-gpios:
+    type: phandle-array
+    required: true
+    description: Hardware reset input for the ADC.

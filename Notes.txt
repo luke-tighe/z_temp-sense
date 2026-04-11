@@ -6,3 +6,8 @@ deactivate
 
 Build Command:
 west build -b ATS_STM32 z_temp-sense -d build/ats_stm32 -p always
+
+To push to github:
+git status
+git commit -m "message"
+git push
