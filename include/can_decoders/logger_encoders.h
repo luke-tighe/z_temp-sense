@@ -7,7 +7,7 @@
 // ============================================================================
 // VCU Logger CAN Encoders — custom telemetry frames transmitted on CAN2
 //
-// Frame format uses big-endian byte order to match DTI encoder convention.
+// Frame format uses big-endian byte order for stable cross-platform parsing.
 // Scaled integer encoding avoids floating-point on the receiver side.
 //
 // Usage:

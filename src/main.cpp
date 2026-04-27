@@ -13,11 +13,11 @@ int main(void)
 {
     LOG_INF("***ATS ENTERED MAIN***");
 
-    static VehicleState vehicle;
-    static Hardware hardware(&vehicle);
+
+    static Hardware hardware();
     static System system;
 
-    LOG_INF("=== VCU Starting ===");
+    LOG_INF("=== ATS Starting ===");
 
     if (system.init() != 0)
     {

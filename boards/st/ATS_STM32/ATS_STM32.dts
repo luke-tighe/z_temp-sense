@@ -170,7 +170,7 @@
 
 /*
  * DAC1 exposes two analog outputs on PA4 and PA5.
- * Note: these pins are still referenced as ADC inputs in the current C++ code.
+ * These pins are dedicated DAC outputs in the current firmware.
  */
 &dac1 {
 	pinctrl-0 = <&dac1_out1_pa4 &dac1_out2_pa5>;
