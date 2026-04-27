@@ -3,7 +3,6 @@
 #include <zephyr/kernel.h>
 
 #include "vehicle_state.h"
-#include "can_decoders/dti_decoders.h"
 
 using frame_handler_t = void (*)(const struct can_frame *frame, volatile VehicleState *vehicle);
 
@@ -22,7 +21,6 @@ class CanBus
     static void can1_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
     static void can2_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
     void dispatch(const struct can_frame *frame);
-    int register_handlers();
 
     frame_handler_t bus_handlers[2048]{nullptr};
 
@@ -36,6 +34,7 @@ class CanBus
     int send(const struct can_frame *frame, k_timeout_t timeout, can_tx_callback_t callback = nullptr,
              void *user_data = nullptr);
 
+    int register_handler(uint16_t standard_id, frame_handler_t handler);
     int add_rx_filter_msgq(struct k_msgq *msgq, const struct can_filter *filter);
     void remove_rx_filter(int filter_id);
 

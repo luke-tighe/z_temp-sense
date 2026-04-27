@@ -222,8 +222,6 @@ int Hardware::initializeCANs()
         return -21;
     }
 
-    can1.set_mode(CAN_MODE_LOOPBACK);
-
     LOG_INF("CANs initialized");
     return 0;
 }
