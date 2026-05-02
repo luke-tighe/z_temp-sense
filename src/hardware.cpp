@@ -1,8 +1,8 @@
 // hardware.cpp
 #include "hardware.h"
-#include "adc.h"
+
 #include <errno.h>
-#include "zephyr/drivers/can.h"
+#include <zephyr/device.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/logging/log.h>
@@ -10,124 +10,99 @@
 LOG_MODULE_REGISTER(hardware);
 
 namespace {
-/* Added to define the SPI bus settings used by each external AD7708 transaction. */
+/* This tells Zephyr how the AD7708 is wired on the SPI bus. */
 constexpr uint32_t kAd7708SpiOperation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_TRANSFER_MSB;
 
-/* Added to build the first external ADC's wiring description from devicetree. */
+/* This connects the first ADC object to the ADC1 devicetree alias. */
 static const AD7708Config kAdc1Config = {
     SPI_DT_SPEC_GET(DT_ALIAS(adc_spi1), kAd7708SpiOperation),
     GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi1), drdy_gpios),
     GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi1), reset_gpios),
 };
 
-/* Added to build the second external ADC's wiring description from devicetree. */
-static const AD7708Config kAdc2Config = {
-    SPI_DT_SPEC_GET(DT_ALIAS(adc_spi2), kAd7708SpiOperation),
-    GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi2), drdy_gpios),
-    GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi2), reset_gpios),
-};
-
-/* Added to build the third external ADC's wiring description from devicetree. */
-static const AD7708Config kAdc3Config = {
-    SPI_DT_SPEC_GET(DT_ALIAS(adc_spi3), kAd7708SpiOperation),
-    GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi3), drdy_gpios),
-    GPIO_DT_SPEC_GET(DT_ALIAS(adc_spi3), reset_gpios),
-};
-
-/* Added to fetch the first ADC's board-level disable GPIO from devicetree. */
-static const struct gpio_dt_spec kAdc1DisableSpec = GPIO_DT_SPEC_GET(DT_ALIAS(adc1_disable), gpios);
-/* Added to fetch the second ADC's board-level disable GPIO from devicetree. */
-static const struct gpio_dt_spec kAdc2DisableSpec = GPIO_DT_SPEC_GET(DT_ALIAS(adc2_disable), gpios);
-/* Added to fetch the third ADC's board-level disable GPIO from devicetree. */
-static const struct gpio_dt_spec kAdc3DisableSpec = GPIO_DT_SPEC_GET(DT_ALIAS(adc3_disable), gpios);
+/* The AD7708 produces a 16-bit code. */
+constexpr int32_t kAdcFullScaleCode = 65535;
+/* This test program assumes ADC1 is measuring up to 2.56 V in unipolar mode. */
+constexpr int32_t kAdcFullScaleMillivolts = 2560;
+/* The STM32 DAC outputs a 12-bit code. */
+constexpr uint16_t kDacFullScaleCode = 4095;
+/* This test program assumes the STM32 DAC runs from a 3.3 V analog supply. */
+constexpr int32_t kDacFullScaleMillivolts = 3300;
 } // namespace
 
 int Hardware::init()
 {
-    LOG_INF("Initializing hardware...");
+    /* This message makes it easy to see when board bring-up starts. */
+    LOG_INF("Initializing the hardware needed for the ADC-to-DAC test");
 
-    if (initializeADCs() != 0)
+    /* Start only the first external ADC because that is all the test needs. */
+    if (initializeADC1() != 0)
     {
-        LOG_ERR("Failed to initialize ADCs");
+        LOG_ERR("Failed to initialize ADC1");
         return -1;
     }
 
-    /* Added to configure DAC1 so PA4 and PA5 can be driven as analog outputs. */
+    /* Start the two DAC outputs that mirror the highest ADC input. */
     if (initializeDACs() != 0)
     {
         LOG_ERR("Failed to initialize DACs");
-        return -4;
-    }
-
-    if (initializeGPIOs() != 0)
-    {
-        LOG_ERR("Failed to initialize GPIOs");
         return -2;
     }
 
-    if (initializeCANs() != 0)
-    {
-        LOG_ERR("Failed to initialize CANs");
-        return -3;
-    }
-
-    LOG_INF("Hardware initialized successfully");
+    /* Reaching this line means the board is ready to read and write analog values. */
+    LOG_INF("Hardware initialization finished");
     return 0;
 }
 
 Hardware::Hardware()
-    
+    /* The ADC object must be connected to its devicetree wiring at construction time. */
+    : adc1_(&kAdc1Config)
 {
 }
 
-int Hardware::initializeADCs()
+int Hardware::initializeADC1()
 {
-    /* Added to drive the ADC disable pins low because the board pull-ups leave them disabled by default. */
-    if (adc1_disable.init(&kAdc1DisableSpec, GPIO_OUTPUT_INACTIVE) != 0)
+    /* This gets the STM32 GPIO port used by the ADC1 enable pin. */
+    const struct device *gpiod_dev = DEVICE_DT_GET(DT_NODELABEL(gpiod));
+
+    /* The board keeps ADC1 disabled until firmware drives this line low. */
+    if (adc1_disable.init(gpiod_dev, 2, GPIO_OUTPUT_INACTIVE) != 0)
     {
         LOG_ERR("Failed to initialize ADC1 disable pin");
         return -1;
     }
-    /* Added to drive the ADC disable pins low because the board pull-ups leave them disabled by default. */
-    if (adc2_disable.init(&kAdc2DisableSpec, GPIO_OUTPUT_INACTIVE) != 0)
+
+    /* This resets the AD7708 and checks that its SPI and GPIO wiring are ready. */
+    if (adc1_.init() != 0)
     {
-        LOG_ERR("Failed to initialize ADC2 disable pin");
+        LOG_ERR("Failed to initialize ADC1");
         return -2;
     }
-    /* Added to drive the ADC disable pins low because the board pull-ups leave them disabled by default. */
-    if (adc3_disable.init(&kAdc3DisableSpec, GPIO_OUTPUT_INACTIVE) != 0)
+
+    /*
+     * These settings tell the ADC to measure one channel at a time, use a
+     * straight 0-to-full-scale code range, and expect signals up to about 2.56 V.
+     */
+    AD7708Settings settings;
+    settings.mode = AD7708Mode::Idle;
+    settings.polarity = AD7708Polarity::Unipolar;
+    settings.input_range = AD7708InputRange::Range2V56;
+
+    /* This writes the basic operating mode into ADC1 before the read loop starts. */
+    if (adc1_.configure(settings) != 0)
     {
-        LOG_ERR("Failed to initialize ADC3 disable pin");
+        LOG_ERR("Failed to configure ADC1");
         return -3;
     }
 
-    /* Added to initialize the first external AD7708 from the adc-spi1 devicetree alias. */
-    if (adc1_.init() != 0)
-    {
-        LOG_ERR("Failed to initialize external ADC1");
-        return -10;
-    }
-    /* Added to initialize the second external AD7708 from the adc-spi2 devicetree alias. */
-    if (adc2_.init() != 0)
-    {
-        LOG_ERR("Failed to initialize external ADC2");
-        return -11;
-    }
-    /* Added to initialize the third external AD7708 from the adc-spi3 devicetree alias. */
-    if (adc3_.init() != 0)
-    {
-        LOG_ERR("Failed to initialize external ADC3");
-        return -12;
-    }
-
-    LOG_INF("External ADCs initialized");
+    /* This log line confirms that ADC1 is ready for channel reads. */
+    LOG_INF("ADC1 is ready");
     return 0;
 }
 
-/* Added to configure DAC1 channel 1 on PA4 and channel 2 on PA5 as 12-bit outputs. */
 int Hardware::initializeDACs()
 {
-    /* Added to fetch the DAC1 device enabled by the board DTS. */
+    /* This finds the STM32 DAC peripheral from the board devicetree. */
     dac1_dev_ = DEVICE_DT_GET(DT_NODELABEL(dac1));
     if (!device_is_ready(dac1_dev_))
     {
@@ -135,27 +110,27 @@ int Hardware::initializeDACs()
         return -1;
     }
 
-    /* Added to describe the PA4 DAC output channel configuration. */
+    /* This sets up DAC channel 1, which is the analog output on PA4. */
     static const struct dac_channel_cfg dac1_ch1_cfg = {1, 12, true, false};
 
-    /* Added to describe the PA5 DAC output channel configuration. */
+    /* This sets up DAC channel 2, which is the analog output on PA5. */
     static const struct dac_channel_cfg dac1_ch2_cfg = {2, 12, true, false};
 
-    /* Added to enable DAC1_OUT1 on PA4 before writes are attempted. */
+    /* The DAC channel must be configured before any values can be written to it. */
     if (dac_channel_setup(dac1_dev_, &dac1_ch1_cfg) != 0)
     {
         LOG_ERR("Failed to setup DAC1 channel 1 (PA4)");
         return -2;
     }
 
-    /* Added to enable DAC1_OUT2 on PA5 before writes are attempted. */
+    /* The second DAC output must also be configured before use. */
     if (dac_channel_setup(dac1_dev_, &dac1_ch2_cfg) != 0)
     {
         LOG_ERR("Failed to setup DAC1 channel 2 (PA5)");
         return -3;
     }
 
-    /* Added to start both outputs at 0 V equivalent code after setup. */
+    /* Starting both outputs at zero makes startup behavior predictable. */
     if (dac_write_value(dac1_dev_, 1, 0) != 0 || dac_write_value(dac1_dev_, 2, 0) != 0)
     {
         LOG_ERR("Failed to write initial DAC values");
@@ -166,185 +141,59 @@ int Hardware::initializeDACs()
     return 0;
 }
 
-/* Added to provide a common path for writing either DAC output by channel number. */
 int Hardware::setDACValue(uint8_t channel, uint16_t value)
 {
-    /* Added to reject DAC writes before Hardware::init() completes successfully. */
+    /* This prevents DAC writes before the DAC hardware has been initialized. */
     if (dac1_dev_ == nullptr || !device_is_ready(dac1_dev_))
     {
         return -ENODEV;
     }
 
-    /* Added to enforce the STM32 DAC channel numbers supported by this board. */
+    /* Only channels 1 and 2 exist on this DAC peripheral. */
     if (channel < 1 || channel > 2)
     {
         return -EINVAL;
     }
 
-    /* Added to clamp callers to the 12-bit range expected by the configured DAC. */
+    /* The STM32 DAC accepts values from 0 to 4095 because it is a 12-bit DAC. */
     if (value > 0x0FFF)
     {
         value = 0x0FFF;
     }
 
-    /* Added to send the raw 12-bit code to the selected DAC output. */
+    /* This writes the final value into the selected DAC output register. */
     return dac_write_value(dac1_dev_, channel, value);
 }
 
-/* Added as the dedicated helper for writing DAC1_OUT1 on PA4. */
 int Hardware::setDAC1Value(uint16_t value)
 {
-    /* Added to route PA4 writes through the shared DAC helper. */
+    /* This keeps the PA4 write path short and easy to read from main.cpp. */
     return setDACValue(1, value);
 }
 
-/* Added as the dedicated helper for writing DAC1_OUT2 on PA5. */
 int Hardware::setDAC2Value(uint16_t value)
 {
-    /* Added to route PA5 writes through the shared DAC helper. */
+    /* This keeps the PA5 write path short and easy to read from main.cpp. */
     return setDACValue(2, value);
 }
 
-uint16_t Hardware::getADCValue(uint8_t channel)
+int Hardware::readADC1Channel(uint8_t channel_number, int32_t *sample)
 {
-    /* Added to support three 8-channel AD7708s using a flat channel numbering scheme. */
-    AD7708 *adc = nullptr;
-    /* Added to convert the global channel index into the per-chip AD7708 input number. */
-    uint8_t local_channel = channel;
-
-    /* Added so channels 0-7 map to the first external ADC. */
-    if (channel < 8)
+    /* The caller must give us somewhere to store the ADC result. */
+    if (sample == nullptr)
     {
-        adc = &adc1_;
-    }
-    /* Added so channels 8-15 map to the second external ADC. */
-    else if (channel < 16)
-    {
-        adc = &adc2_;
-        local_channel = static_cast<uint8_t>(channel - 8);
-    }
-    /* Added so channels 16-23 map to the third external ADC. */
-    else if (channel < 24)
-    {
-        adc = &adc3_;
-        local_channel = static_cast<uint8_t>(channel - 16);
-    }
-    else
-    {
-        return -1;
+        return -EINVAL;
     }
 
-    /* Added to store the AD7708's signed sample before converting it to the existing raw API type. */
-    int32_t sample = 0;
-    /* Added to surface read failures through the existing uint16_t-returning API. */
-    if (adc->read_raw(local_channel, &sample) != 0)
+    /*
+     * This function now expects the same channel numbers that appear in the
+     * AD7708 datasheet, such as AIN1, AIN2, AIN3, and so on.
+     */
+    if (channel_number < 1 || channel_number > 8)
     {
-        return static_cast<uint16_t>(-1);
+        return -EINVAL;
     }
 
-    /* Added to preserve the previous Hardware API shape expected by APPS and other callers. */
-    return static_cast<uint16_t>(sample & 0xFFFF);
-}
-
-int Hardware::initializeGPIOs()
-{
-    // Get GPIO ports
-    gpioe_ = DEVICE_DT_GET(DT_NODELABEL(gpioe));
-    gpioc_ = DEVICE_DT_GET(DT_NODELABEL(gpioc));
-    gpioa_ = DEVICE_DT_GET(DT_NODELABEL(gpioa));
-
-    if (!gpioe_ || !gpioc_ || !gpioa_)
-    {
-        LOG_ERR("Failed to get GPIO ports");
-        return -1;
-    }
-
-    // Initialize LEDs (PE2-PE6)
-    if (led_yellow.init(gpioe_, 2, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init led_yellow");
-        return -10;
-    }
-    if (led_orange.init(gpioe_, 3, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init led_orange");
-        return -11;
-    }
-    if (led_red.init(gpioe_, 4, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init led_red");
-        return -12;
-    }
-    if (led_blue.init(gpioe_, 5, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init led_blue");
-        return -13;
-    }
-    if (led_green.init(gpioe_, 6, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init led_green");
-        return -14;
-    }
-
-    // Initialize control signals
-    if (horn_signal.init(gpioc_, 8, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init horn_signal");
-        return -20;
-    }
-    if (drive_enable.init(gpioc_, 9, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init drive_enable");
-        return -21;
-    }
-    if (air_ctrl.init(gpioa_, 8, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init air_ctrl");
-        return -22;
-    }
-
-    LOG_INF("GPIOs initialized");
-    return 0;
-}
-
-int Hardware::initializeCANs()
-{
-    // Get CAN devices
-    can1_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan1));
-    can2_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan2));
-
-    if (!can1_dev || !can2_dev)
-    {
-        LOG_ERR("Failed to get CAN devices");
-        return -1;
-    }
-
-    // Initialize CAN1 (1 Mbps)
-    if (can1.init(can1_dev, 1000000, 875) != 0)
-    {
-        LOG_ERR("Failed to init CAN1");
-        return -10;
-    }
-
-    if (can1.start() != 0)
-    {
-        LOG_ERR("Failed to start CAN1");
-        return -11;
-    }
-
-    // Initialize CAN2 (1 Mbps)
-    if (can2.init(can2_dev, 1000000, 875) != 0)
-    {
-        LOG_ERR("Failed to init CAN2");
-        return -20;
-    }
-
-    if (can2.start() != 0)
-    {
-        LOG_ERR("Failed to start CAN2");
-        return -21;
-    }
-
-    LOG_INF("CANs initialized");
-    return 0;
+    /* This asks ADC1 for one fresh sample from the exact datasheet channel number. */
+    return adc1_.read_raw(channel_number, sample);
 }

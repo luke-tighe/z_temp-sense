@@ -21,7 +21,7 @@ LoggerTask &get_logger_task()
     return logger_task_instance;
 }
 
-void start_logger_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms, int priority)
+void start_logger_task(System *sys, Hardware *hw, uint32_t period_ms, int priority)
 {
     logger_task_instance.set_system(sys);
     logger_task_instance.set_hardware(hw);

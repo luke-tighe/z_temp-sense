@@ -13,12 +13,13 @@ target_include_directories(app PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Re-run CMake when sources are added or removed under src/.
-file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+# Build only the small set of source files needed for the current bring-up task.
+# This keeps old project-specific code out of the build while the new hardware
+# test program is being brought up.
+target_sources(app PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hardware.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/adc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gpio.cpp
 )
-
-target_sources(app PRIVATE ${APP_SOURCES})
-
 

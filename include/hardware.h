@@ -2,63 +2,37 @@
 #pragma once
 
 #include "adc.h"
-#include "can.h"
 #include "gpio.h"
-#include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-/* Added for Zephyr's DAC API used by PA4/PA5 output support. */
 #include <zephyr/drivers/dac.h>
 
 class Hardware
 {
   public:
-    /* Added to match the existing implementation in hardware.cpp. */
+    /* Creates the hardware helper object used by main.cpp. */
     Hardware();
-    /* Added to keep the existing CAN wrapper objects declared in the class. */
-    CanBus can1;
-    /* Added to keep the existing CAN wrapper objects declared in the class. */
-    CanBus can2;
 
+    /* Turns on the parts of the board needed for the current test program. */
     int init();
-    /* Added so application code can write a raw 12-bit value to PA4/DAC1_OUT1. */
+    /* Writes a 12-bit DAC code to PA4. */
     int setDAC1Value(uint16_t value);
-    /* Added so application code can write a raw 12-bit value to PA5/DAC1_OUT2. */
+    /* Writes a 12-bit DAC code to PA5. */
     int setDAC2Value(uint16_t value);
-    /* Added as a shared helper for selecting either DAC output by channel number. */
+    /* Shared helper used by both DAC outputs. */
     int setDACValue(uint8_t channel, uint16_t value);
-
-    /* Reads one raw sample from the external AD7708 ADCs. */
-    uint16_t getADCValue(uint8_t channel);
+    /* Reads one ADC1 channel using the channel number printed in the AD7708 datasheet. */
+    int readADC1Channel(uint8_t channel_number, int32_t *sample);
 
   private:
-    /* Added to store the DAC1 device used for PA4/PA5 analog outputs. */
+    /* This points at the STM32 DAC peripheral that drives PA4 and PA5. */
     const struct device *dac1_dev_ = nullptr;
-    const struct device *gpioe_ = nullptr;
-    const struct device *gpioc_ = nullptr;
-    const struct device *gpioa_ = nullptr;
-    const struct device *can1_dev = nullptr;
-    const struct device *can2_dev = nullptr;
-
-    /* Added to hold the external AD7708 connected to the adc-spi1 alias. */
+    /* This object talks to the first external AD7708 ADC over SPI. */
     AD7708 adc1_;
-    /* Added to hold the external AD7708 connected to the adc-spi2 alias. */
-    AD7708 adc2_;
-    /* Added to hold the external AD7708 connected to the adc-spi3 alias. */
-    AD7708 adc3_;
-    /* Added so firmware can drive the first ADC's disable pin low to enable it. */
+    /* This GPIO must be driven low so ADC1 is allowed to run. */
     GpioPin adc1_disable;
-    /* Added so firmware can drive the second ADC's disable pin low to enable it. */
-    GpioPin adc2_disable;
-    /* Added so firmware can drive the third ADC's disable pin low to enable it. */
-    GpioPin adc3_disable;
 
-    /* Added to keep the existing VehicleState pointer declared in the class. */
-    VehicleState *vehicle = nullptr;
-
-    /* Initializes the external AD7708 ADCs declared in the board devicetree. */
-    int initializeADCs();
-    /* Added to initialize DAC1 channel 1 on PA4 and channel 2 on PA5. */
+    /* Turns on and configures the first external ADC. */
+    int initializeADC1();
+    /* Turns on and configures both DAC outputs. */
     int initializeDACs();
-    int initializeGPIOs();
-    int initializeCANs();
 };
